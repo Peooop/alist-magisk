@@ -1,0 +1,6 @@
+id=Alist
+name=Alist
+version=v3.17.0
+versionCode=3
+author=酷安@七七琴979
+description=默认开机自启alist进程,需要开关控制Alist进程,自动更新Alist版本,执行 /data/adb/modules/Alist/ 目录的 start.sh 文件
