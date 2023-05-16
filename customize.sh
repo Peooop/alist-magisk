@@ -1,11 +1,11 @@
 #!/system/bin/sh
-MODDIR=${0%/*}
-
+# busybox的路径地址
+busybox="/data/adb/magisk/busybox"
 ui_print " -------------------------- "
 ui_print " ------ 安装中，请稍等..."
 sleep 1
 
-ui_print " ------ 官方最新版本""`(curl -Ls "https://api.github.com/repos/alist-org/alist/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')`"
+ui_print " ------ 官方最新版本""`($busybox wget -q -O- "https://api.github.com/repos/alist-org/alist/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')`"
 
 alistVersion="$(cat module.prop | grep "version=")"
 ui_print " ------ 模块版本$(echo ${alistVersion##*=})"
