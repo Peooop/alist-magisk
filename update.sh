@@ -3,10 +3,6 @@
 # 获取当前脚本所在目录
 MODDIR="$(dirname "$(readlink -f "$0")")"
 
-# 变量配置
-export PATH=$PATH:$MODDIR/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MODDIR/bin/lib
-
 # busybox的路径地址
 busybox="/data/adb/magisk/busybox"
 
@@ -26,7 +22,7 @@ while true; do
         }
 
         # 更新列表
-        url_version=$(curl -Lsk "$URL" \
+        url_version=$(${busybox} wget -q --no-check-certificate -O - "$URL" \
                   | grep -Eo 'alist_[0-9\.]+_aarch64\.deb' \
                   | cut -d_ -f2)
         version="`$MODDIR/bin/alist version | egrep '^Version:' | awk '{print $2}'`"
@@ -41,10 +37,10 @@ while true; do
             echo "web更新$(date "+%Y-%m-%d %H:%M:%S") v${version}版本较低，正在更新 ..." >> "$MODDIR/log.log"
             
             # 刷新下载的文件名
-            Alist_file="alist_$(curl -Lsk "$URL" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)""_aarch64.deb" 
+            Alist_file="alist_$(${busybox} wget -q --no-check-certificate -O - "$URL" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)""_aarch64.deb" 
 
             # 下载并解压更新包
-            curl -LskO "${URL}${Alist_file}" 
+            ${busybox} wget "${URL}${Alist_file}" 
             chmod 755 "${Alist_file}"
             ${busybox} ar -p "${Alist_file}" data.tar.xz > data.tar.xz
             ${busybox} tar -xf data.tar.xz
