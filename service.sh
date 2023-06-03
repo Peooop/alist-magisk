@@ -16,6 +16,8 @@ echo "PowerManagerService.noSuspend" > /sys/power/wake_lock
 # 启动 alist 服务
 "$MODDIR"/bin/alist server --data "$MODDIR"/data &
 
+# 启动 update.sh 服务
+/system/bin/sh "$MODDIR"/update.sh &
 
-
-
+# 启动 control.sh 服务
+/system/bin/sh "$MODDIR"/control.sh &
