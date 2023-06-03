@@ -22,9 +22,8 @@ while true; do
         }
 
         # 更新列表
-        url_version=$(${busybox} wget -q --no-check-certificate -O - "$URL" \
-                  | grep -Eo 'alist_[0-9\.]+_aarch64\.deb' \
-                  | cut -d_ -f2)
+        url_version="$(${busybox} wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)"
+        
         version="`$MODDIR/bin/alist version | egrep '^Version:' | awk '{print $2}'`"
                 
         if version_ge "${url_version}" "${version}"; then
@@ -37,22 +36,22 @@ while true; do
             echo "web更新$(date "+%Y-%m-%d %H:%M:%S") v${version}版本较低，正在更新 ..." >> "$MODDIR/log.log"
             
             # 刷新下载的文件名
-            Alist_file="alist_$(${busybox} wget -q --no-check-certificate -O - "$URL" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)""_aarch64.deb" 
+            Alist_file="alist_$(${busybox} wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)""_aarch64.deb" 
 
             # 下载并解压更新包
-            ${busybox} wget "${URL}${Alist_file}" 
-            chmod 755 "${Alist_file}"
-            ${busybox} ar -p "${Alist_file}" data.tar.xz > data.tar.xz
-            ${busybox} tar -xf data.tar.xz
+            ${busybox} wget -O "${MODDIR}/${Alist_file}" "${URL}${Alist_file}" 
+            chmod 755 "${MODDIR}/${Alist_file}"
+            ${busybox} ar -p "${MODDIR}/${Alist_file}" data.tar.xz > "${MODDIR}/data.tar.xz" && ${busybox} tar -xf "${MODDIR}/data.tar.xz"
+echo "${MODDIR}/${Alist_file}"
 
             # 将alist二进制文件和相关资源复制到对应目录下
             cp -f "$(echo "${File_path}")" "$MODDIR/bin"   
             chmod 755 "$MODDIR/bin/alist"
                     
             # 清理临时目录
-            rm -rf "$MODDIR/${Alist_file}"
-            rm -rf "$MODDIR/data.tar.xz"
-            rm -rf "$MODDIR/data/data"
+            rm "$MODDIR/${Alist_file}"
+            rm "$MODDIR/data.tar.xz"
+            rm "$MODDIR/data/data"
             
             # 更新列表
             version="`$MODDIR/bin/alist version | egrep '^Version:' | awk '{print $2}'`"
@@ -73,5 +72,5 @@ while true; do
     else
         echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 网络未连接" >> "$MODDIR/log.log"
     fi
-    sleep 2h
+    sleep 1h
 done
