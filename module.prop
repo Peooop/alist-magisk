@@ -3,4 +3,4 @@ name=Alist
 version=v3.17.0
 versionCode=3
 author=酷安@七七琴979
-description=默认开机自启alist进程,需要开关控制Alist进程,自动更新Alist版本,执行 /data/adb/modules/Alist/ 目录的 start.sh 文件
+description=一款支持多个存储挂载的文件列表程序，并且支持webdav协议，享受Alist带来的网盘管理便捷吧！
