@@ -42,7 +42,6 @@ while true; do
             ${busybox} wget -O "${MODDIR}/${Alist_file}" "${URL}${Alist_file}" 
             chmod 755 "${MODDIR}/${Alist_file}"
             ${busybox} ar -p "${MODDIR}/${Alist_file}" data.tar.xz > "${MODDIR}/data.tar.xz" && ${busybox} tar -xf "${MODDIR}/data.tar.xz"
-echo "${MODDIR}/${Alist_file}"
 
             # 将alist二进制文件和相关资源复制到对应目录下
             cp -f "$(echo "${File_path}")" "$MODDIR/bin"   
