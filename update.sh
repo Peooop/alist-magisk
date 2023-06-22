@@ -77,12 +77,10 @@ while true; do
 
         echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 准备重启进程 ..." >> "${MODDIR}/log.log"
         # 重启进程
-        PIDS=$(ps -ef | grep "[a]list server" | awk '{print $2}')
-        if [ -n "$PIDS" ]; then
-            kill -9 $PIDS
+        if pgrep -f 'alist' >/dev/null; then
+            pkill alist # 关闭进程
         fi
         "${MODDIR}/bin/alist" server --data "${MODDIR}/data" &
     fi
-
     sleep 4h
 done
