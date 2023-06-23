@@ -10,12 +10,12 @@ busybox="/data/adb/magisk/busybox"
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
 
 # 下载解压后需要提取的路径文件
-File_path="${MODDIR}/data/data/com.termux/files/usr/bin/alist"
+File_path="./data/data/com.termux/files/usr/bin/alist"
 
 # 检查网络连通性函数
 check_connectivity() {
     if ! ping -q -c 1 -W 1 www.baidu.com >/dev/null; then
-        sleep 40s
+        sleep 5s
         return 1
     fi
     return 0
