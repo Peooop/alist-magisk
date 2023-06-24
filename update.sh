@@ -4,7 +4,8 @@
 MODDIR="$(dirname "$(readlink -f "$0")")"
 
 # busybox的路径地址
-busybox="/data/adb/magisk/busybox"
+[ -f /data/adb/magisk/busybox ] && busybox="/data/adb/magisk/busybox"
+[ -z "$busybox" ] && [ -f /data/adb/ksu/bin/busybox ] && busybox="/data/adb/ksu/bin/busybox"
 
 # 更新的源
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
