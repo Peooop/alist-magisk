@@ -10,9 +10,6 @@ MODDIR="$(dirname "$(readlink -f "$0")")"
 # 更新的源
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
 
-# 下载解压后需要提取的路径文件
-File_path="./data/data/com.termux/files/usr/bin/alist"
-
 # 检查网络连通性函数
 check_connectivity() {
     if ! ping -q -c 1 -W 1 www.baidu.com >/dev/null; then
@@ -57,18 +54,19 @@ while true; do
 
         # 下载并解压更新包
         Alist_file="alist_${url_version}_aarch64.deb"
-        ${busybox} wget -O "${MODDIR}/${Alist_file}" "${URL}${Alist_file}"
-        chmod 755 "${MODDIR}/${Alist_file}"
-        ${busybox} ar -p "${MODDIR}/${Alist_file}" data.tar.xz > "${MODDIR}/data.tar.xz" && ${busybox} tar -xf "${MODDIR}/data.tar.xz"
+        
+        ${busybox} wget -O "${MODDIR}/tmp/${Alist_file}" "${URL}${Alist_file}"
+        chmod 755 "${MODDIR}/tmp/${Alist_file}"
+        ${busybox} ar -p "${MODDIR}/tmp/${Alist_file}" data.tar.xz > "${MODDIR}/tmp/data.tar.xz" && ${busybox} tar -xf "${MODDIR}/tmp/data.tar.xz" -C "${MODDIR}/tmp"
 
         # 复制文件到对应目录下
-        mv -f "${File_path}" "${MODDIR}/bin/alist"
+        mv -f "${MODDIR}/tmp/data/data/com.termux/files/usr/bin/alist" "${MODDIR}/bin/alist"
         chmod 755 "${MODDIR}/bin/alist"
 
         # 清理临时文件
-        find "${MODDIR}" -name "alist_*_aarch64.deb" -delete
-        rm "${MODDIR}/data.tar.xz"
-        rm -r "${MODDIR}/data/data"
+        find "${MODDIR}/tmp" -name "alist_*_aarch64.deb" -delete
+        rm "${MODDIR}/tmp/data.tar.xz"
+        rm -r "${MODDIR}/tmp/data"
 
         # 更新列表
         version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
