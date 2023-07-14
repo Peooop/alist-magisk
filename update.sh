@@ -4,8 +4,8 @@
 MODDIR="$(dirname "$(readlink -f "$0")")"
 
 # busybox的路径地址
-[ -f /data/adb/magisk/busybox ] && busybox="/data/adb/magisk/busybox"
-[ -z "$busybox" ] && [ -f /data/adb/ksu/bin/busybox ] && busybox="/data/adb/ksu/bin/busybox"
+BUSYBOX_PATH="/data/adb/magisk/busybox:/data/adb/ksu/bin/busybox"
+BUSYBOX=""
 
 # 更新的源
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
@@ -19,67 +19,108 @@ check_connectivity() {
     return 0
 }
 
+# 找到可用的busybox路径
+find_busybox() {
+    for path in $(echo $BUSYBOX_PATH | tr ":" "\n"); do
+        if [ -f "$path" ]; then
+            BUSYBOX="$path"
+            break
+        fi
+    done
+}
+
+# 删除大于1MB的log.log文件
+delete_log() {
+    log_size=$(wc -c < "${MODDIR}/log.log")
+    if [ "$log_size" -gt 1048576 ]; then
+        rm "${MODDIR}/log.log"
+    fi
+}
+
+# 下载并解压更新包
+download_and_extract() {
+    Alist_file="alist_${url_version}_aarch64.deb"
+    mkdir -p "${MODDIR}/tmp"
+    "${BUSYBOX}" wget -O "${MODDIR}/tmp/${Alist_file}" "${URL}${Alist_file}"
+    chmod 755 "${MODDIR}/tmp/${Alist_file}"
+    "${BUSYBOX}" ar -p "${MODDIR}/tmp/${Alist_file}" data.tar.xz > "${MODDIR}/tmp/data.tar.xz" && "${BUSYBOX}" tar -xf "${MODDIR}/tmp/data.tar.xz" -C "${MODDIR}/tmp"
+}
+
+# 复制更新后的文件到对应目录下
+copy_files() {
+    mv -f "${MODDIR}/tmp/data/data/com.termux/files/usr/bin/alist" "${MODDIR}/bin/alist"
+    chmod 755 "${MODDIR}/bin/alist"
+}
+
+# 清理临时文件
+cleanup() {
+    rm -r "${MODDIR}/tmp"
+}
+
 # 比较版本号函数
 version_ge() {
     test "$(echo -e "$1\n$2" | sort -V | tail -n 1)" = "$2"
 }
 
-while true; do
-    # 获取log.log文件大小
-    log_size=$(wc -c < "${MODDIR}/log.log")
-
-    # 检查是否超过1MB
-    if [ "$log_size" -gt 1048576 ]; then
-        # 删除log.log文件
-        rm "${MODDIR}/log.log"
+# 更新列表并重启进程
+update_and_restart() {
+    echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 更新后v${version}版本" >> "${MODDIR}/log.log"
+    # 修改模块信息文件中的版本号，并重新导入变量配置文件
+    sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
+    # 重启进程
+    if pgrep -f 'alist' >/dev/null; then
+        pkill alist # 关闭进程
     fi
+    "${MODDIR}/bin/alist" server --data "${MODDIR}/data" &
+}
 
-    # 判断网络是否连通
+# 处理更新失败
+handle_failed_update() {
+    echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 更新失败" >> "${MODDIR}/log.log"
+}
+
+# 查找并设置busybox路径
+find_busybox
+
+while true; do
+    delete_log
     if ! check_connectivity; then
         continue
     fi
+    
     # 获取最新版本号
-    url_version="$(${busybox} wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)"
+    url_version="$("${BUSYBOX}" wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)"
+    
     # 获取当前Alist版本号
     version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
 
     if version_ge "${url_version}" "${version}"; then
         echo "web更新$(date "+%Y-%m-%d %H:%M:%S") v${version}已是最新版本" >> "${MODDIR}/log.log"
-
-        # 修改模块信息文件中的版本号，并重新导入变量配置文件
         sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
-
     else
         echo "web更新$(date "+%Y-%m-%d %H:%M:%S") v${version}版本较低，正在更新 ..." >> "${MODDIR}/log.log"
+        download_and_extract
+        copy_files
+        cleanup
 
-        # 下载并解压更新包
-        Alist_file="alist_${url_version}_aarch64.deb"
-        
-        ${busybox} wget -O "${MODDIR}/tmp/${Alist_file}" "${URL}${Alist_file}"
-        chmod 755 "${MODDIR}/tmp/${Alist_file}"
-        ${busybox} ar -p "${MODDIR}/tmp/${Alist_file}" data.tar.xz > "${MODDIR}/tmp/data.tar.xz" && ${busybox} tar -xf "${MODDIR}/tmp/data.tar.xz" -C "${MODDIR}/tmp"
+        max_retries=3
+        retry_count=0
 
-        # 复制文件到对应目录下
-        mv -f "${MODDIR}/tmp/data/data/com.termux/files/usr/bin/alist" "${MODDIR}/bin/alist"
-        chmod 755 "${MODDIR}/bin/alist"
+        while true; do
+            version=$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')
+            if version_ge "${url_version}" "${version}"; then
+                update_and_restart
+                break
+            fi
 
-        # 清理临时文件
-        find "${MODDIR}/tmp" -name "alist_*_aarch64.deb" -delete
-        rm "${MODDIR}/tmp/data.tar.xz"
-        rm -r "${MODDIR}/tmp/data"
+            sleep 5s
+            ((retry_count++))
 
-        # 更新列表
-        version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
-
-        # 修改模块信息文件中的版本号，并重新导入变量配置文件
-        sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
-
-        echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 准备重启进程 ..." >> "${MODDIR}/log.log"
-        # 重启进程
-        if pgrep -f 'alist' >/dev/null; then
-            pkill alist # 关闭进程
-        fi
-        "${MODDIR}/bin/alist" server --data "${MODDIR}/data" &
+            if [[ ${retry_count} -eq ${max_retries} ]]; then
+                handle_failed_update
+                break
+            fi
+        done
     fi
     sleep 4h
 done
