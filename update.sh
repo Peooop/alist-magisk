@@ -9,6 +9,8 @@ BUSYBOX=""
 
 # 更新的源
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
+# 架构
+ARCH=$(uname -m)
 
 # 检查网络连通性函数
 check_connectivity() {
@@ -39,7 +41,7 @@ delete_log() {
 
 # 下载并解压更新包
 download_and_extract() {
-    Alist_file="alist_${url_version}_aarch64.deb"
+    Alist_file="alist_${url_version}_${ARCH}.deb"
     mkdir -p "${MODDIR}/tmp"
     "${BUSYBOX}" wget -O "${MODDIR}/tmp/${Alist_file}" "${URL}${Alist_file}"
     chmod 755 "${MODDIR}/tmp/${Alist_file}"
@@ -65,11 +67,9 @@ version_ge() {
 # 更新列表并重启进程
 update_and_restart() {
     echo "web更新$(date "+%Y-%m-%d %H:%M:%S") 更新后v${version}版本" >> "${MODDIR}/log.log"
-    # 修改模块信息文件中的版本号，并重新导入变量配置文件
     sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
-    # 重启进程
     if pgrep -f 'alist' >/dev/null; then
-        pkill alist # 关闭进程
+        pkill alist 
     fi
     "${MODDIR}/bin/alist" server --data "${MODDIR}/data" &
 }
@@ -85,11 +85,12 @@ find_busybox
 while true; do
     delete_log
     if ! check_connectivity; then
+        sleep 5s
         continue
     fi
     
     # 获取最新版本号
-    url_version="$("${BUSYBOX}" wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_aarch64.deb$' | sed 's/_aarch64\.deb//' | tail -n 1)"
+    url_version="$("${BUSYBOX}" wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_'"${ARCH}"'.deb$' | sed 's/_'"${ARCH}"'\.deb//' | tail -n 1)"
     
     # 获取当前Alist版本号
     version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
