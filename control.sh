@@ -8,5 +8,5 @@ while true; do
     else
         pgrep -f 'alist' >/dev/null || $MODDIR/bin/alist server --data "$MODDIR/data" &
     fi
-    sleep 5
+    sleep 3
 done
