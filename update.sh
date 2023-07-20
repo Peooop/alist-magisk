@@ -59,7 +59,7 @@ version_ge() {
 
 # 更新列表并重启进程
 update_and_restart() {
-    echo "[$(date "+%Y-%m-%d] [%H:%M:%S")] v${version} after the update" >> "${MODDIR}/log.log"
+    echo "[$(date "+%Y-%m-%d] %H:%M:%S") v${version}, after the update" >> "${MODDIR}/log.log"
     sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
     if pgrep -f 'alist' >/dev/null; then
         pkill alist 
@@ -69,10 +69,10 @@ update_and_restart() {
 # 更新检测
 check_and_update_version() {
     if version_ge "${url_version}" "${version}"; then
-        echo "[$(date "+%Y-%m-%d] [%H:%M:%S")] v${version} latest version" >> "${MODDIR}/log.log"
+        echo "[$(date "+%Y-%m-%d] %H:%M:%S") v${version}, latest version" >> "${MODDIR}/log.log"
         sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
     else
-        echo "[$(date "+%Y-%m-%d] [%H:%M:%S")] v${version}，updating ..." >> "${MODDIR}/log.log"
+        echo "[$(date "+%Y-%m-%d] %H:%M:%S") v${version}, updating ..." >> "${MODDIR}/log.log"
         download_and_extract
         
         max_retries=3
@@ -98,7 +98,7 @@ check_and_update_version() {
 
 # 处理更新失败
 handle_failed_update() {
-    echo "[$(date "+%Y-%m-%d] [%H:%M:%S")] update failed !" >> "${MODDIR}/log.log"
+    echo "[$(date "+%Y-%m-%d] %H:%M:%S") update failed !" >> "${MODDIR}/log.log"
 }
 
 # 查找并设置busybox路径
@@ -133,7 +133,7 @@ while true; do
         fi
         check_and_update_version
     else
-        echo "[$(date "+%Y-%m-%d] [%H:%M:%S")] Failed to detect version number for update failure detection !" >> "${MODDIR}/log.log"
+        echo "[$(date "+%Y-%m-%d] %H:%M:%S") Failed to detect version number for update failure detection !" >> "${MODDIR}/log.log"
     fi
     
     sleep 4h
