@@ -95,11 +95,11 @@ check_and_update_version() {
         fi
 
         ((retry_times++))
-        if [ $((retry_times % 6)) -eq 0 ]; then
+        if [ $((retry_times % 60)) -eq 0 ]; then
             echo "[$(date "+%Y-%m-%d %H:%M:%S")] 获取URL版本号失败..." >> "${MODDIR}/log.log"
         fi
 
-        sleep 5s
+        sleep 30m
     done
  
     if [ ! -x "${MODDIR}/bin/alist" ]; then
@@ -149,5 +149,5 @@ while true; do
         continue
     fi
     check_and_update_version
-    sleep 4h
+    sleep 3h
 done
