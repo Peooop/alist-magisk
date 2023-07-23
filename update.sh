@@ -7,11 +7,21 @@ MODDIR="$(dirname "$(readlink -f "$0")")"
 BUSYBOX_PATH="/data/adb/magisk/busybox:/data/adb/ksu/bin/busybox"
 BUSYBOX=""
 
+# 架构
+ARCH=$(uname -m)
+
 # 更新的源
 URL="https://packages-cf.termux.dev/apt/termux-main/pool/main/a/alist/"
 
-# 架构
-ARCH=$(uname -m)
+# 最新版本号
+get_latest_version() {
+    url_version="$("${BUSYBOX}" wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_'"${ARCH}"'.deb$' | sed 's/_'"${ARCH}"'\.deb//' | tail -n 1)"
+}
+
+# 本地版本号
+get_version() {
+    version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
+}
 
 # 检查网络连通性函数
 check_connectivity() {
@@ -59,46 +69,74 @@ version_ge() {
 
 # 更新列表并重启进程
 update_and_restart() {
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}, after the update" >> "${MODDIR}/log.log"
+    get_version
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}，更新后" >> "${MODDIR}/log.log"
     sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
     if pgrep -f 'alist' >/dev/null; then
         pkill alist 
     fi
     "${MODDIR}/bin/alist" server --data "${MODDIR}/data" &
 }
+
+# 更新失败
+handle_failed_update() {
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新失败！" >> "${MODDIR}/log.log"
+}
+
 # 更新检测
 check_and_update_version() {
+    # 获取最新版本号
+    retry_times=0
+    while true; do
+        get_latest_version
+
+        if [ -n "$url_version" ]; then
+            break
+        fi
+
+        ((retry_times++))
+        if [ $((retry_times % 6)) -eq 0 ]; then
+            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 获取URL版本号失败..." >> "${MODDIR}/log.log"
+        fi
+
+        sleep 5s
+    done
+ 
+    if [ ! -x "${MODDIR}/bin/alist" ]; then
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] ${MODDIR}/bin/alist 未找到，直接从URL进行更新..." >> "${MODDIR}/log.log"
+        download_and_extract
+        update_and_restart
+        return
+    fi
+    
+    get_version
     if version_ge "${url_version}" "${version}"; then
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}, latest version" >> "${MODDIR}/log.log"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}，最新版本" >> "${MODDIR}/log.log"
         sed -i "s/^version=.*/version=v${version}/g" "${MODDIR}/module.prop"
     else
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}, updating ..." >> "${MODDIR}/log.log"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] v${version}，更新中..." >> "${MODDIR}/log.log"
+        
         download_and_extract
         
-        max_retries=3
-        retry_count=0
+        max_attempts=3  # 最大尝试次数
+        attempt=1  # 当前尝试次数
 
-        while true; do
-            version=$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')
-            if version_ge "${url_version}" "${version}"; then
+        while [ $attempt -le $max_attempts ]; do
+            sleep 10s
+            get_version
+            if [[ "${url_version}" == "${version}" ]]; then
                 update_and_restart
                 break
-            fi
-
-            sleep 5s
-            ((retry_count++))
-
-            if [[ ${retry_count} -eq ${max_retries} ]]; then
-                handle_failed_update
-                break
+            else
+                ((attempt++))
+                if [ $attempt -gt $max_attempts ]; then
+                    handle_failed_update
+                    break
+                fi
+                download_and_extract
             fi
         done
     fi
-}
-
-# 处理更新失败
-handle_failed_update() {
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] update failed !" >> "${MODDIR}/log.log"
 }
 
 # 查找并设置busybox路径
@@ -110,31 +148,6 @@ while true; do
         sleep 5s
         continue
     fi
-    
-    # 获取最新版本号（尝试3次）
-    retry_times=0
-    while [ $retry_times -lt 3 ]; do
-        url_version="$("${BUSYBOX}" wget -q --no-check-certificate -O - "${URL}" | grep -o 'alist_[^"]*' | sed 's/alist_//' | grep '_'"${ARCH}"'.deb$' | sed 's/_'"${ARCH}"'\.deb//' | tail -n 1)"
-        
-        if [ -n "$url_version" ]; then
-            break
-        fi
-        
-        ((retry_times++))
-        sleep 5s
-    done
-    
-    if [ -n "$url_version" ]; then
-        # 获取当前Alist版本号
-        if [ -x "${MODDIR}/bin/alist" ]; then
-            version="$("${MODDIR}/bin/alist" version | awk '/^Version:/ {print $2}')"
-        else
-            version=""
-        fi
-        check_and_update_version
-    else
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] Failed to detect version number for update failure detection !" >> "${MODDIR}/log.log"
-    fi
-    
+    check_and_update_version
     sleep 4h
 done
